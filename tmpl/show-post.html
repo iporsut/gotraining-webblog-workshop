@@ -1,0 +1,28 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Blog > {{.Title}}</title>
+    <meta charset="utf-8" />
+  </head>
+
+  <body>
+    <a href="/">All Posts</a>
+    <h1>{{.Title}}</h1>
+    <span><strong>Create</strong>: {{.CreatedAt.Format "02/01/2006 15:04:05"}} / <strong>Last Update</strong>: {{.UpdatedAt.Format "02/01/2006 15:04:05"}}</span>
+    <p>{{.Body}}</p>
+    <p><a href="/posts/edit/?id={{.ID}}">Edit</a></p>
+    <p><a id="delete" href="/posts/delete/?id={{.ID}}">Delete</a></p>
+    <form id="delForm" method="POST" action="/posts/delete/">
+      <input type="hidden" name="id" value="{{.ID}}"/>
+    </form>
+    <script>
+     document.querySelector("#delete").addEventListener("click", function(event) {
+	 event.preventDefault();
+	 if (confirm("Are you sure to delete?")) {
+	     document.querySelector("#delForm").submit();
+	 }
+	 return false;
+     });
+    </script>
+  </body>
+</html>
