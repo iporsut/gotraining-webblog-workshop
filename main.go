@@ -67,14 +67,38 @@ func listPost(ctx context.Context, db *sql.DB) ([]Post, error) {
 // if return non-nil error last inserted ID is zero
 func createPost(ctx context.Context, db *sql.DB, post *Post) (int64, error) {
 	// LAB
-	return 0, nil
+	qry := "INSERT INTO posts(title, body) VALUES (?,?)"
+	stmt, err := db.PrepareContext(ctx, qry)
+	if err != nil {
+		return 0, err
+	}
+	result, err := stmt.ExecContext(ctx, post.Title, post.Body)
+	if err != nil {
+		return 0, err
+	}
+	return result.LastInsertId()
 }
 
 // findPost query posts by ID then scan colum to each post field and return pointer of post
 // if return non-nil error pointer is nil
 func findPost(ctx context.Context, db *sql.DB, id int) (*Post, error) {
-	// LAB
-	return nil, nil
+	qry := `SELECT id,
+                       title,
+                       body,
+                       created_at,
+                       updated_at
+                FROM posts
+                WHERE id = ?`
+	stmt, err := db.PrepareContext(ctx, qry)
+	row := stmt.QueryRowContext(ctx, id)
+	var post Post
+	err = row.Scan(&post.ID, &post.Title, &post.Body, &post.CreatedAt, &post.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	post.CreatedAt = post.CreatedAt.In(time.Local)
+	post.UpdatedAt = post.UpdatedAt.In(time.Local)
+	return &post, nil
 }
 
 func buildUpdateQuery(cur, new *Post) (qry string, args []interface{}, hasUpdate bool) {
@@ -124,14 +148,16 @@ func deletePost(ctx context.Context, db *sql.DB, id int) error {
 
 // listHandler loads post from DB then send to execute listTmpl
 func listHandler(db *sql.DB, w http.ResponseWriter, r *http.Request) error {
-	// LAB
-	return nil
+	posts, err := listPost(r.Context(), db)
+	if err != nil {
+		return err
+	}
+	return listTmpl.Execute(w, posts)
 }
 
 // newHandler executes newTmpl
 func newHandler(db *sql.DB, w http.ResponseWriter, r *http.Request) error {
-	// LAB
-	return nil
+	return newTmpl.Execute(w, nil)
 }
 
 func createHandler(db *sql.DB, w http.ResponseWriter, r *http.Request) error {
@@ -166,7 +192,15 @@ func showHandler(db *sql.DB, w http.ResponseWriter, r *http.Request) error {
 // editHandler finds post by id then execute editTmpl with that post
 func editHandler(db *sql.DB, w http.ResponseWriter, r *http.Request) error {
 	// LAB
-	return nil
+	id, err := strconv.Atoi(r.FormValue("id"))
+	if err != nil {
+		return err
+	}
+	post, err := findPost(r.Context(), db, id)
+	if err != nil {
+		return err
+	}
+	return editTmpl.Execute(w, post)
 }
 
 func updateHandler(db *sql.DB, w http.ResponseWriter, r *http.Request) error {
@@ -207,7 +241,8 @@ func deleteHandler(db *sql.DB, w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func wrapError(db *sql.DB, h func(*sql.DB, http.ResponseWriter, *http.Request) error) http.HandlerFunc {
+func wrapError(db *sql.DB,
+	h func(*sql.DB, http.ResponseWriter, *http.Request) error) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if err := h(db, w, r); err != nil {
 			log.Println(err)
@@ -219,7 +254,7 @@ func wrapError(db *sql.DB, h func(*sql.DB, http.ResponseWriter, *http.Request) e
 
 func main() {
 	// Open connection to MySQL Database
-	db, err := sql.Open("mysql", "root:@/blogdb?parseTime=true")
+	db, err := sql.Open("mysql", "htsROjiNf4:zKFKRMrDnQ@tcp(remotemysql.com)/htsROjiNf4?parseTime=true")
 	check(err)
 
 	http.HandleFunc("/", wrapError(db, listHandler))
